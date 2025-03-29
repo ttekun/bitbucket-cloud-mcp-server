@@ -1,36 +1,383 @@
-import express from 'express';
-import { BitbucketCloudService } from './services/BitbucketCloudService';
+#!/usr/bin/env node
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  CallToolRequestSchema,
+  ErrorCode,
+  ListToolsRequestSchema,
+  McpError,
+} from '@modelcontextprotocol/sdk/types.js';
+import axios, { AxiosInstance } from 'axios';
+import winston from 'winston';
+import dotenv from 'dotenv';
 
-const app = express();
-const port = process.env.PORT || 3000;
-const bitbucketToken = process.env.BITBUCKET_TOKEN;
+// 環境変数の読み込み
+dotenv.config();
 
-if (!bitbucketToken) {
-  throw new Error('BITBUCKET_TOKEN is required');
-}
-
-const bitbucketService = new BitbucketCloudService(undefined, bitbucketToken);
-
-app.use(express.json());
-
-app.get('/api/pullrequests/:workspace/:repoSlug/:pullRequestId', async (req, res) => {
-  try {
-    const { workspace, repoSlug, pullRequestId } = req.params;
-    const pullRequest = await bitbucketService.getPullRequest(
-      workspace,
-      repoSlug,
-      parseInt(pullRequestId, 10)
-    );
-    res.json(pullRequest);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch pull request' });
-  }
+// ロガーの設定
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.File({ filename: 'bitbucket-cloud.log' })
+  ]
 });
 
-if (require.main === module) {
-  app.listen(port, () => {
-    console.log(`MCP Server is running on port ${port}`);
-  });
+interface BitbucketConfig {
+  baseUrl: string;
+  token: string;
+  workspace?: string;
 }
 
-export default app; 
+interface RepositoryParams {
+  workspace: string;
+  repository: string;
+}
+
+interface PullRequestParams extends RepositoryParams {
+  prId: number;
+}
+
+interface CommentOptions {
+  text: string;
+  parentId?: number;
+}
+
+interface PullRequestInput extends RepositoryParams {
+  title: string;
+  description: string;
+  sourceBranch: string;
+  targetBranch: string;
+  reviewers?: string[];
+}
+
+class BitbucketCloud {
+  private readonly server: Server;
+  private readonly api: AxiosInstance;
+  private readonly config: BitbucketConfig;
+
+  constructor() {
+    this.server = new Server(
+      {
+        name: 'bitbucket-cloud-mcp-server',
+        version: '1.0.0',
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      }
+    );
+
+    // 環境変数からの初期設定
+    this.config = {
+      baseUrl: 'https://api.bitbucket.org/2.0',
+      token: process.env.BITBUCKET_TOKEN ?? '',
+      workspace: process.env.BITBUCKET_WORKSPACE
+    };
+
+    if (!this.config.token) {
+      throw new Error('BITBUCKET_TOKEN is required');
+    }
+
+    // Axiosインスタンスの設定
+    this.api = axios.create({
+      baseURL: this.config.baseUrl,
+      headers: {
+        'Authorization': `Bearer ${this.config.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    this.setupToolHandlers();
+    
+    this.server.onerror = (error) => logger.error('[MCP Error]', error);
+  }
+
+  private isPullRequestInput(args: unknown): args is PullRequestInput {
+    const input = args as Partial<PullRequestInput>;
+    return typeof args === 'object' &&
+      args !== null &&
+      typeof input.workspace === 'string' &&
+      typeof input.repository === 'string' &&
+      typeof input.title === 'string' &&
+      typeof input.sourceBranch === 'string' &&
+      typeof input.targetBranch === 'string' &&
+      (input.description === undefined || typeof input.description === 'string') &&
+      (input.reviewers === undefined || Array.isArray(input.reviewers));
+  }
+
+  private setupToolHandlers() {
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: [
+        {
+          name: 'create_pull_request',
+          description: 'Create a new pull request in Bitbucket Cloud',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              workspace: { type: 'string', description: 'Bitbucket workspace' },
+              repository: { type: 'string', description: 'Repository slug' },
+              title: { type: 'string', description: 'PR title' },
+              description: { type: 'string', description: 'PR description' },
+              sourceBranch: { type: 'string', description: 'Source branch name' },
+              targetBranch: { type: 'string', description: 'Target branch name' },
+              reviewers: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'List of reviewer UUIDs'
+              }
+            },
+            required: ['repository', 'title', 'sourceBranch', 'targetBranch']
+          }
+        },
+        {
+          name: 'get_pull_request',
+          description: 'Get pull request details from Bitbucket Cloud',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              workspace: { type: 'string', description: 'Bitbucket workspace' },
+              repository: { type: 'string', description: 'Repository slug' },
+              prId: { type: 'number', description: 'Pull request ID' }
+            },
+            required: ['repository', 'prId']
+          }
+        },
+        {
+          name: 'merge_pull_request',
+          description: 'Merge a pull request in Bitbucket Cloud',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              workspace: { type: 'string', description: 'Bitbucket workspace' },
+              repository: { type: 'string', description: 'Repository slug' },
+              prId: { type: 'number', description: 'Pull request ID' },
+              message: { type: 'string', description: 'Merge commit message' },
+              closeSourceBranch: { type: 'boolean', description: 'Close source branch after merge' },
+              mergeStrategy: { 
+                type: 'string',
+                enum: ['merge_commit', 'squash', 'fast_forward'],
+                description: 'Merge strategy to use'
+              }
+            },
+            required: ['repository', 'prId']
+          }
+        },
+        {
+          name: 'decline_pull_request',
+          description: 'Decline a pull request in Bitbucket Cloud',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              workspace: { type: 'string', description: 'Bitbucket workspace' },
+              repository: { type: 'string', description: 'Repository slug' },
+              prId: { type: 'number', description: 'Pull request ID' }
+            },
+            required: ['repository', 'prId']
+          }
+        },
+        {
+          name: 'add_comment',
+          description: 'Add a comment to a pull request in Bitbucket Cloud',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              workspace: { type: 'string', description: 'Bitbucket workspace' },
+              repository: { type: 'string', description: 'Repository slug' },
+              prId: { type: 'number', description: 'Pull request ID' },
+              text: { type: 'string', description: 'Comment text' },
+              parentId: { type: 'number', description: 'Parent comment ID for replies' }
+            },
+            required: ['repository', 'prId', 'text']
+          }
+        },
+        {
+          name: 'get_diff',
+          description: 'Get pull request diff from Bitbucket Cloud',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              workspace: { type: 'string', description: 'Bitbucket workspace' },
+              repository: { type: 'string', description: 'Repository slug' },
+              prId: { type: 'number', description: 'Pull request ID' }
+            },
+            required: ['repository', 'prId']
+          }
+        }
+      ]
+    }));
+
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      try {
+        logger.info(`Called tool: ${request.params.name}`, { arguments: request.params.arguments });
+        const args = request.params.arguments ?? {};
+
+        const pullRequestParams: PullRequestParams = {
+          workspace: (args.workspace as string) ?? this.config.workspace,
+          repository: args.repository as string,
+          prId: args.prId as number
+        };
+
+        if (!pullRequestParams.workspace) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            'Workspace must be provided either as a parameter or through BITBUCKET_WORKSPACE environment variable'
+          );
+        }
+
+        switch (request.params.name) {
+          case 'create_pull_request':
+            if (!this.isPullRequestInput(args)) {
+              throw new McpError(
+                ErrorCode.InvalidParams,
+                'Invalid pull request input parameters'
+              );
+            }
+            return await this.createPullRequest(args);
+          case 'get_pull_request':
+            return await this.getPullRequest(pullRequestParams);
+          case 'merge_pull_request':
+            return await this.mergePullRequest(pullRequestParams, {
+              message: args.message as string,
+              closeSourceBranch: args.closeSourceBranch as boolean,
+              mergeStrategy: args.mergeStrategy as string
+            });
+          case 'decline_pull_request':
+            return await this.declinePullRequest(pullRequestParams);
+          case 'add_comment':
+            return await this.addComment(pullRequestParams, {
+              text: args.text as string,
+              parentId: args.parentId as number
+            });
+          case 'get_diff':
+            return await this.getDiff(pullRequestParams);
+          default:
+            throw new McpError(
+              ErrorCode.MethodNotFound,
+              `Unknown tool: ${request.params.name}`
+            );
+        }
+      } catch (error) {
+        logger.error('Tool execution error', { error });
+        if (axios.isAxiosError(error)) {
+          throw new McpError(
+            ErrorCode.InternalError,
+            `Bitbucket API error: ${error.response?.data.error?.message ?? error.message}`
+          );
+        }
+        throw error;
+      }
+    });
+  }
+
+  private async createPullRequest(input: PullRequestInput) {
+    const response = await this.api.post(
+      `/repositories/${input.workspace}/${input.repository}/pullrequests`,
+      {
+        title: input.title,
+        description: input.description,
+        source: {
+          branch: {
+            name: input.sourceBranch
+          }
+        },
+        destination: {
+          branch: {
+            name: input.targetBranch
+          }
+        },
+        reviewers: input.reviewers?.map(uuid => ({ uuid }))
+      }
+    );
+
+    return {
+      content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
+    };
+  }
+
+  private async getPullRequest(params: PullRequestParams) {
+    const { workspace, repository, prId } = params;
+    const response = await this.api.get(
+      `/repositories/${workspace}/${repository}/pullrequests/${prId}`
+    );
+
+    return {
+      content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
+    };
+  }
+
+  private async mergePullRequest(params: PullRequestParams, options: any = {}) {
+    const { workspace, repository, prId } = params;
+    const { message, closeSourceBranch, mergeStrategy } = options;
+    
+    const response = await this.api.post(
+      `/repositories/${workspace}/${repository}/pullrequests/${prId}/merge`,
+      {
+        message,
+        close_source_branch: closeSourceBranch,
+        merge_strategy: mergeStrategy
+      }
+    );
+
+    return {
+      content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
+    };
+  }
+
+  private async declinePullRequest(params: PullRequestParams) {
+    const { workspace, repository, prId } = params;
+    const response = await this.api.post(
+      `/repositories/${workspace}/${repository}/pullrequests/${prId}/decline`
+    );
+
+    return {
+      content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
+    };
+  }
+
+  private async addComment(params: PullRequestParams, options: CommentOptions) {
+    const { workspace, repository, prId } = params;
+    const { text, parentId } = options;
+    
+    const response = await this.api.post(
+      `/repositories/${workspace}/${repository}/pullrequests/${prId}/comments`,
+      {
+        content: {
+          raw: text
+        },
+        parent: parentId ? { id: parentId } : undefined
+      }
+    );
+
+    return {
+      content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
+    };
+  }
+
+  private async getDiff(params: PullRequestParams) {
+    const { workspace, repository, prId } = params;
+    const response = await this.api.get(
+      `/repositories/${workspace}/${repository}/pullrequests/${prId}/diff`,
+      {
+        headers: { Accept: 'text/plain' }
+      }
+    );
+
+    return {
+      content: [{ type: 'text', text: response.data }]
+    };
+  }
+
+  async run() {
+    const transport = new StdioServerTransport();
+    await this.server.connect(transport);
+    logger.info('Bitbucket Cloud MCP server running on stdio');
+  }
+}
+
+const server = new BitbucketCloud();
+server.run().catch((error) => {
+  logger.error('Server error', error);
+  process.exit(1);
+}); 

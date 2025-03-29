@@ -1,10 +1,10 @@
 # Bitbucket Cloud MCP
 
-MCP (Model Context Protocol) server for Bitbucket Cloud Pull Request management. This server provides tools and resources to interact with the Bitbucket Cloud API through the MCP protocol.
+MCP (Model Context Protocol) server for Bitbucket Cloud Pull Request management. This server provides tools to interact with the Bitbucket Cloud API through the Model Context Protocol.
 
 ## Requirements
 
-- Node.js >= 16
+- Node.js >= 18
 
 ## Installation
 
@@ -21,38 +21,81 @@ npm run build
 
 ## Features
 
-The server provides the following tools for Bitbucket Cloud integration:
+The server provides the following MCP tools for Bitbucket Cloud integration:
+
+### `create_pull_request`
+
+Creates a new pull request in a Bitbucket Cloud repository.
+
+Parameters:
+- `workspace` (required): Bitbucket workspace
+- `repository` (required): Repository slug
+- `title` (required): PR title
+- `description`: PR description
+- `sourceBranch` (required): Source branch name
+- `targetBranch` (required): Target branch name
+- `reviewers`: List of reviewer UUIDs
 
 ### `get_pull_request`
 
 Retrieves detailed information about a specific pull request.
 
 Parameters:
+- `workspace` (required): Bitbucket workspace
+- `repository` (required): Repository slug
+- `prId` (required): Pull request ID
 
-- `workspace` (required): Bitbucket workspace name
-- `repoSlug` (required): Repository slug
-- `pullRequestId` (required): Pull request ID
+### `merge_pull_request`
 
-Example Response:
-```json
-{
-  "id": 123,
-  "title": "Feature: Add new functionality",
-  "description": "Implements new feature...",
-  "state": "OPEN"
-}
-```
+Merges a pull request.
+
+Parameters:
+- `workspace` (required): Bitbucket workspace
+- `repository` (required): Repository slug
+- `prId` (required): Pull request ID
+- `message`: Merge commit message
+- `closeSourceBranch`: Close source branch after merge
+- `mergeStrategy`: Merge strategy to use ('merge_commit', 'squash', or 'fast_forward')
+
+### `decline_pull_request`
+
+Declines a pull request.
+
+Parameters:
+- `workspace` (required): Bitbucket workspace
+- `repository` (required): Repository slug
+- `prId` (required): Pull request ID
+
+### `add_comment`
+
+Adds a comment to a pull request.
+
+Parameters:
+- `workspace` (required): Bitbucket workspace
+- `repository` (required): Repository slug
+- `prId` (required): Pull request ID
+- `text` (required): Comment text
+- `parentId`: Parent comment ID for replies
+
+### `get_diff`
+
+Gets the diff for a pull request.
+
+Parameters:
+- `workspace` (required): Bitbucket workspace
+- `repository` (required): Repository slug
+- `prId` (required): Pull request ID
 
 ## Dependencies
 
-- `express` - Web framework for API endpoints
+- `@modelcontextprotocol/sdk` - Model Context Protocol SDK
 - `axios` - HTTP client for API requests
 - `winston` - Logging framework
 - `dotenv` - Environment variable management
 
 ## Configuration
 
-The server requires configuration in the VSCode MCP settings file. Here's a sample configuration:
+The server requires configuration in the MCP client settings. Here's a sample configuration for VSCode:
 
 ```json
 {
@@ -63,8 +106,8 @@ The server requires configuration in the VSCode MCP settings file. Here's a samp
       "env": {
         // Required: Bitbucket Cloud Personal Access Token
         "BITBUCKET_TOKEN": "your-bitbucket-cloud-token",
-        // Optional: Server port (default: 3000)
-        "PORT": "3000"
+        // Optional: Default Bitbucket workspace
+        "BITBUCKET_WORKSPACE": "your-workspace"
       }
     }
   }
@@ -74,26 +117,9 @@ The server requires configuration in the VSCode MCP settings file. Here's a samp
 ### Environment Variables
 
 - `BITBUCKET_TOKEN` (required): Personal access token from Bitbucket Cloud
-  - Required permissions: `pullrequest:read`
+  - Required permissions: Repository read/write, Pull request read/write
   - Can be generated from: Bitbucket Cloud > Personal Settings > App passwords
-- `PORT` (optional): Server port number (default: 3000)
-
-## API Endpoints
-
-### Get Pull Request
-```
-GET /api/pullrequests/:workspace/:repoSlug/:pullRequestId
-```
-
-Parameters:
-- `workspace`: Bitbucket workspace name
-- `repoSlug`: Repository slug
-- `pullRequestId`: Pull request ID
-
-Example:
-```bash
-curl http://localhost:3000/api/pullrequests/my-workspace/my-repo/123
-```
+- `BITBUCKET_WORKSPACE` (optional): Default Bitbucket workspace to use
 
 ## Development
 
@@ -102,19 +128,18 @@ curl http://localhost:3000/api/pullrequests/my-workspace/my-repo/123
 npm test
 ```
 
-The test suite includes:
-- Unit tests for BitbucketCloudService
-- Integration tests for API endpoints
-- 100% test coverage
-
 ### Local Development
 1. Copy `.env.example` to `.env`
 2. Set your Bitbucket Cloud token in `.env`
 3. Run `npm start` for development
 
-## Error Handling
+## Model Context Protocol
 
-The server implements comprehensive error handling:
-- API errors are properly caught and formatted
-- HTTP 500 responses for server errors
-- Detailed error messages for debugging 
+This server implements the Model Context Protocol (MCP), a standard protocol for AI tools that allows AI assistants to:
+
+1. Discover available tools
+2. Understand tool capabilities and required parameters
+3. Call tools with appropriate parameters
+4. Receive structured responses
+
+The MCP implementation uses the `@modelcontextprotocol/sdk` package to facilitate communication between the AI assistant and the Bitbucket Cloud API. 
