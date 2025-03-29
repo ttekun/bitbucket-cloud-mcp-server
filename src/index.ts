@@ -26,11 +26,11 @@ const logger = winston.createLogger({
 interface BitbucketConfig {
   baseUrl: string;
   token: string;
-  workspace?: string;
+  owner?: string;
 }
 
 interface RepositoryParams {
-  workspace: string;
+  owner: string;
   repository: string;
 }
 
@@ -60,7 +60,7 @@ class BitbucketCloud {
     this.config = {
       baseUrl: 'https://api.bitbucket.org/2.0',
       token: process.env.BITBUCKET_TOKEN ?? '',
-      workspace: process.env.BITBUCKET_WORKSPACE
+      owner: process.env.BITBUCKET_WORKSPACE
     };
 
     if (!this.config.token) {
@@ -90,11 +90,11 @@ class BitbucketCloud {
           inputSchema: {
             type: 'object',
             properties: {
-              workspace: { type: 'string', description: 'Bitbucket workspace' },
+              owner: { type: 'string', description: 'Bitbucket workspace/owner' },
               repository: { type: 'string', description: 'Repository slug' },
               prId: { type: 'number', description: 'Pull request ID' }
             },
-            required: ['repository', 'prId']
+            required: ['owner', 'repository', 'prId']
           }
         },
         {
@@ -103,11 +103,11 @@ class BitbucketCloud {
           inputSchema: {
             type: 'object',
             properties: {
-              workspace: { type: 'string', description: 'Bitbucket workspace' },
+              owner: { type: 'string', description: 'Bitbucket workspace/owner' },
               repository: { type: 'string', description: 'Repository slug' },
               prId: { type: 'number', description: 'Pull request ID' }
             },
-            required: ['repository', 'prId']
+            required: ['owner', 'repository', 'prId']
           }
         }
       ]
@@ -119,15 +119,15 @@ class BitbucketCloud {
         const args = request.params.arguments ?? {};
 
         const pullRequestParams: PullRequestParams = {
-          workspace: (args.workspace as string) ?? this.config.workspace,
+          owner: (args.owner as string) ?? this.config.owner,
           repository: args.repository as string,
           prId: args.prId as number
         };
 
-        if (!pullRequestParams.workspace) {
+        if (!pullRequestParams.owner) {
           throw new McpError(
             ErrorCode.InvalidParams,
-            'Workspace must be provided either as a parameter or through BITBUCKET_WORKSPACE environment variable'
+            'Owner must be provided either as a parameter or through BITBUCKET_WORKSPACE environment variable'
           );
         }
 
@@ -156,9 +156,9 @@ class BitbucketCloud {
   }
 
   private async getPullRequest(params: PullRequestParams) {
-    const { workspace, repository, prId } = params;
+    const { owner, repository, prId } = params;
     const response = await this.api.get(
-      `/repositories/${workspace}/${repository}/pullrequests/${prId}`
+      `/repositories/${owner}/${repository}/pullrequests/${prId}`
     );
 
     return {
@@ -167,9 +167,9 @@ class BitbucketCloud {
   }
 
   private async getDiff(params: PullRequestParams) {
-    const { workspace, repository, prId } = params;
+    const { owner, repository, prId } = params;
     const response = await this.api.get(
-      `/repositories/${workspace}/${repository}/pullrequests/${prId}/diff`,
+      `/repositories/${owner}/${repository}/pullrequests/${prId}/diff`,
       {
         headers: { Accept: 'text/plain' }
       }

@@ -28,7 +28,7 @@ The server provides the following read-only MCP tools for Bitbucket Cloud integr
 Retrieves detailed information about a specific pull request.
 
 Parameters:
-- `workspace` (required): Bitbucket workspace
+- `owner` (required): Bitbucket workspace/owner
 - `repository` (required): Repository slug
 - `prId` (required): Pull request ID
 
@@ -37,7 +37,7 @@ Parameters:
 Gets the diff for a pull request.
 
 Parameters:
-- `workspace` (required): Bitbucket workspace
+- `owner` (required): Bitbucket workspace/owner
 - `repository` (required): Repository slug
 - `prId` (required): Pull request ID
 
@@ -60,9 +60,9 @@ The server requires configuration in the MCP client settings. Here's a sample co
       "args": ["/path/to/bitbucket-cloud-mcp-server/build/index.js"],
       "env": {
         // Required: Bitbucket Cloud Personal Access Token
-        "BITBUCKET_TOKEN": "your-bitbucket-cloud-token",
-        // Optional: Default Bitbucket workspace
-        "BITBUCKET_WORKSPACE": "your-workspace"
+        "BITBUCKET_TOKEN": "your-bitbucket-cloud-token-here",
+        // Optional: Default Bitbucket workspace/owner
+        "BITBUCKET_WORKSPACE": "your-bitbucket-workspace-here"
       }
     }
   }
@@ -74,7 +74,7 @@ The server requires configuration in the MCP client settings. Here's a sample co
 - `BITBUCKET_TOKEN` (required): Personal access token from Bitbucket Cloud
   - Required permissions: Repository read, Pull request read
   - Can be generated from: Bitbucket Cloud > Personal Settings > App passwords
-- `BITBUCKET_WORKSPACE` (optional): Default Bitbucket workspace to use
+- `BITBUCKET_WORKSPACE` (optional): Default Bitbucket workspace/owner to use
 
 ## Development
 
