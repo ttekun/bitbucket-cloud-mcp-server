@@ -60,10 +60,10 @@ class BitbucketCloud {
                         type: 'object',
                         properties: {
                             owner: { type: 'string', description: 'Bitbucket workspace/owner' },
-                            repository: { type: 'string', description: 'Repository slug' },
+                            repo: { type: 'string', description: 'Repository slug' },
                             prId: { type: 'number', description: 'Pull request ID' }
                         },
-                        required: ['owner', 'repository', 'prId']
+                        required: ['owner', 'repo', 'prId']
                     }
                 },
                 {
@@ -73,10 +73,10 @@ class BitbucketCloud {
                         type: 'object',
                         properties: {
                             owner: { type: 'string', description: 'Bitbucket workspace/owner' },
-                            repository: { type: 'string', description: 'Repository slug' },
+                            repo: { type: 'string', description: 'Repository slug' },
                             prId: { type: 'number', description: 'Pull request ID' }
                         },
-                        required: ['owner', 'repository', 'prId']
+                        required: ['owner', 'repo', 'prId']
                     }
                 }
             ]
@@ -87,11 +87,21 @@ class BitbucketCloud {
                 const args = request.params.arguments ?? {};
                 const pullRequestParams = {
                     owner: args.owner ?? this.config.owner,
-                    repository: args.repository,
-                    prId: args.prId
+                    repo: args.repo ?? args.repository,
+                    prId: args.prId ??
+                        args.pull_request_id ??
+                        args.pullRequestId ??
+                        args.pr_id ??
+                        args.id
                 };
                 if (!pullRequestParams.owner) {
                     throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Owner must be provided either as a parameter or through BITBUCKET_WORKSPACE environment variable');
+                }
+                if (!pullRequestParams.repo) {
+                    throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Repository slug (repo) must be provided');
+                }
+                if (!pullRequestParams.prId) {
+                    throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Pull request ID (prId) must be provided');
                 }
                 switch (request.params.name) {
                     case 'get_pull_request':
@@ -112,15 +122,15 @@ class BitbucketCloud {
         });
     }
     async getPullRequest(params) {
-        const { owner, repository, prId } = params;
-        const response = await this.api.get(`/repositories/${owner}/${repository}/pullrequests/${prId}`);
+        const { owner, repo, prId } = params;
+        const response = await this.api.get(`/repositories/${owner}/${repo}/pullrequests/${prId}`);
         return {
             content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
         };
     }
     async getDiff(params) {
-        const { owner, repository, prId } = params;
-        const response = await this.api.get(`/repositories/${owner}/${repository}/pullrequests/${prId}/diff`, {
+        const { owner, repo, prId } = params;
+        const response = await this.api.get(`/repositories/${owner}/${repo}/pullrequests/${prId}/diff`, {
             headers: { Accept: 'text/plain' }
         });
         return {

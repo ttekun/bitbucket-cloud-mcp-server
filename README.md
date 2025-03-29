@@ -29,7 +29,7 @@ Retrieves detailed information about a specific pull request.
 
 Parameters:
 - `owner` (required): Bitbucket workspace/owner
-- `repository` (required): Repository slug
+- `repo` (required): Repository slug
 - `prId` (required): Pull request ID
 
 ### `get_diff`
@@ -38,7 +38,7 @@ Gets the diff for a pull request.
 
 Parameters:
 - `owner` (required): Bitbucket workspace/owner
-- `repository` (required): Repository slug
+- `repo` (required): Repository slug
 - `prId` (required): Pull request ID
 
 ## Dependencies
@@ -87,6 +87,13 @@ npm test
 1. Copy `.env.example` to `.env`
 2. Set your Bitbucket Cloud token in `.env`
 3. Run `npm start` for development
+
+## Parameter Compatibility Notes
+
+For backward compatibility, this server accepts the following parameter mappings:
+- `owner` for Bitbucket workspace/owner
+- `repo` for repository slug (older versions used `repository`)
+- `prId`, `pull_request_id`, `pullRequestId`, `pr_id`, or `id` for Pull Request ID
 
 ## Model Context Protocol
 
