@@ -125,7 +125,8 @@ class BitbucketCloud {
                 (args.pull_request_id as number) ?? 
                 (args.pullRequestId as number) ?? 
                 (args.pr_id as number) ??
-                (args.id as number)
+                (args.id as number) ??
+                (args.pull_number as number)
         };
 
         if (!pullRequestParams.owner) {

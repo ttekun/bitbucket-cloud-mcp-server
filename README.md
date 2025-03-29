@@ -93,7 +93,7 @@ npm test
 For backward compatibility, this server accepts the following parameter mappings:
 - `owner` for Bitbucket workspace/owner
 - `repo` for repository slug (older versions used `repository`)
-- `prId`, `pull_request_id`, `pullRequestId`, `pr_id`, or `id` for Pull Request ID
+- `prId`, `pull_request_id`, `pullRequestId`, `pr_id`, `id`, or `pull_number` for Pull Request ID
 
 ## Model Context Protocol
 

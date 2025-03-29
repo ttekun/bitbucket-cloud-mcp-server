@@ -92,7 +92,8 @@ class BitbucketCloud {
                         args.pull_request_id ??
                         args.pullRequestId ??
                         args.pr_id ??
-                        args.id
+                        args.id ??
+                        args.pull_number
                 };
                 if (!pullRequestParams.owner) {
                     throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Owner must be provided either as a parameter or through BITBUCKET_WORKSPACE environment variable');
