@@ -38,19 +38,6 @@ interface PullRequestParams extends RepositoryParams {
   prId: number;
 }
 
-interface CommentOptions {
-  text: string;
-  parentId?: number;
-}
-
-interface PullRequestInput extends RepositoryParams {
-  title: string;
-  description: string;
-  sourceBranch: string;
-  targetBranch: string;
-  reviewers?: string[];
-}
-
 class BitbucketCloud {
   private readonly server: Server;
   private readonly api: AxiosInstance;
@@ -94,43 +81,9 @@ class BitbucketCloud {
     this.server.onerror = (error) => logger.error('[MCP Error]', error);
   }
 
-  private isPullRequestInput(args: unknown): args is PullRequestInput {
-    const input = args as Partial<PullRequestInput>;
-    return typeof args === 'object' &&
-      args !== null &&
-      typeof input.workspace === 'string' &&
-      typeof input.repository === 'string' &&
-      typeof input.title === 'string' &&
-      typeof input.sourceBranch === 'string' &&
-      typeof input.targetBranch === 'string' &&
-      (input.description === undefined || typeof input.description === 'string') &&
-      (input.reviewers === undefined || Array.isArray(input.reviewers));
-  }
-
   private setupToolHandlers() {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
-        {
-          name: 'create_pull_request',
-          description: 'Create a new pull request in Bitbucket Cloud',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              workspace: { type: 'string', description: 'Bitbucket workspace' },
-              repository: { type: 'string', description: 'Repository slug' },
-              title: { type: 'string', description: 'PR title' },
-              description: { type: 'string', description: 'PR description' },
-              sourceBranch: { type: 'string', description: 'Source branch name' },
-              targetBranch: { type: 'string', description: 'Target branch name' },
-              reviewers: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'List of reviewer UUIDs'
-              }
-            },
-            required: ['repository', 'title', 'sourceBranch', 'targetBranch']
-          }
-        },
         {
           name: 'get_pull_request',
           description: 'Get pull request details from Bitbucket Cloud',
@@ -142,54 +95,6 @@ class BitbucketCloud {
               prId: { type: 'number', description: 'Pull request ID' }
             },
             required: ['repository', 'prId']
-          }
-        },
-        {
-          name: 'merge_pull_request',
-          description: 'Merge a pull request in Bitbucket Cloud',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              workspace: { type: 'string', description: 'Bitbucket workspace' },
-              repository: { type: 'string', description: 'Repository slug' },
-              prId: { type: 'number', description: 'Pull request ID' },
-              message: { type: 'string', description: 'Merge commit message' },
-              closeSourceBranch: { type: 'boolean', description: 'Close source branch after merge' },
-              mergeStrategy: { 
-                type: 'string',
-                enum: ['merge_commit', 'squash', 'fast_forward'],
-                description: 'Merge strategy to use'
-              }
-            },
-            required: ['repository', 'prId']
-          }
-        },
-        {
-          name: 'decline_pull_request',
-          description: 'Decline a pull request in Bitbucket Cloud',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              workspace: { type: 'string', description: 'Bitbucket workspace' },
-              repository: { type: 'string', description: 'Repository slug' },
-              prId: { type: 'number', description: 'Pull request ID' }
-            },
-            required: ['repository', 'prId']
-          }
-        },
-        {
-          name: 'add_comment',
-          description: 'Add a comment to a pull request in Bitbucket Cloud',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              workspace: { type: 'string', description: 'Bitbucket workspace' },
-              repository: { type: 'string', description: 'Repository slug' },
-              prId: { type: 'number', description: 'Pull request ID' },
-              text: { type: 'string', description: 'Comment text' },
-              parentId: { type: 'number', description: 'Parent comment ID for replies' }
-            },
-            required: ['repository', 'prId', 'text']
           }
         },
         {
@@ -227,29 +132,8 @@ class BitbucketCloud {
         }
 
         switch (request.params.name) {
-          case 'create_pull_request':
-            if (!this.isPullRequestInput(args)) {
-              throw new McpError(
-                ErrorCode.InvalidParams,
-                'Invalid pull request input parameters'
-              );
-            }
-            return await this.createPullRequest(args);
           case 'get_pull_request':
             return await this.getPullRequest(pullRequestParams);
-          case 'merge_pull_request':
-            return await this.mergePullRequest(pullRequestParams, {
-              message: args.message as string,
-              closeSourceBranch: args.closeSourceBranch as boolean,
-              mergeStrategy: args.mergeStrategy as string
-            });
-          case 'decline_pull_request':
-            return await this.declinePullRequest(pullRequestParams);
-          case 'add_comment':
-            return await this.addComment(pullRequestParams, {
-              text: args.text as string,
-              parentId: args.parentId as number
-            });
           case 'get_diff':
             return await this.getDiff(pullRequestParams);
           default:
@@ -271,83 +155,10 @@ class BitbucketCloud {
     });
   }
 
-  private async createPullRequest(input: PullRequestInput) {
-    const response = await this.api.post(
-      `/repositories/${input.workspace}/${input.repository}/pullrequests`,
-      {
-        title: input.title,
-        description: input.description,
-        source: {
-          branch: {
-            name: input.sourceBranch
-          }
-        },
-        destination: {
-          branch: {
-            name: input.targetBranch
-          }
-        },
-        reviewers: input.reviewers?.map(uuid => ({ uuid }))
-      }
-    );
-
-    return {
-      content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
-    };
-  }
-
   private async getPullRequest(params: PullRequestParams) {
     const { workspace, repository, prId } = params;
     const response = await this.api.get(
       `/repositories/${workspace}/${repository}/pullrequests/${prId}`
-    );
-
-    return {
-      content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
-    };
-  }
-
-  private async mergePullRequest(params: PullRequestParams, options: any = {}) {
-    const { workspace, repository, prId } = params;
-    const { message, closeSourceBranch, mergeStrategy } = options;
-    
-    const response = await this.api.post(
-      `/repositories/${workspace}/${repository}/pullrequests/${prId}/merge`,
-      {
-        message,
-        close_source_branch: closeSourceBranch,
-        merge_strategy: mergeStrategy
-      }
-    );
-
-    return {
-      content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
-    };
-  }
-
-  private async declinePullRequest(params: PullRequestParams) {
-    const { workspace, repository, prId } = params;
-    const response = await this.api.post(
-      `/repositories/${workspace}/${repository}/pullrequests/${prId}/decline`
-    );
-
-    return {
-      content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
-    };
-  }
-
-  private async addComment(params: PullRequestParams, options: CommentOptions) {
-    const { workspace, repository, prId } = params;
-    const { text, parentId } = options;
-    
-    const response = await this.api.post(
-      `/repositories/${workspace}/${repository}/pullrequests/${prId}/comments`,
-      {
-        content: {
-          raw: text
-        },
-        parent: parentId ? { id: parentId } : undefined
-      }
     );
 
     return {

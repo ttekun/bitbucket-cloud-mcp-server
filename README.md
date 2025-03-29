@@ -1,6 +1,6 @@
 # Bitbucket Cloud MCP
 
-MCP (Model Context Protocol) server for Bitbucket Cloud Pull Request management. This server provides tools to interact with the Bitbucket Cloud API through the Model Context Protocol.
+MCP (Model Context Protocol) server for Bitbucket Cloud Pull Request management. This server provides read-only tools to interact with the Bitbucket Cloud API through the Model Context Protocol.
 
 ## Requirements
 
@@ -21,20 +21,7 @@ npm run build
 
 ## Features
 
-The server provides the following MCP tools for Bitbucket Cloud integration:
-
-### `create_pull_request`
-
-Creates a new pull request in a Bitbucket Cloud repository.
-
-Parameters:
-- `workspace` (required): Bitbucket workspace
-- `repository` (required): Repository slug
-- `title` (required): PR title
-- `description`: PR description
-- `sourceBranch` (required): Source branch name
-- `targetBranch` (required): Target branch name
-- `reviewers`: List of reviewer UUIDs
+The server provides the following read-only MCP tools for Bitbucket Cloud integration:
 
 ### `get_pull_request`
 
@@ -44,38 +31,6 @@ Parameters:
 - `workspace` (required): Bitbucket workspace
 - `repository` (required): Repository slug
 - `prId` (required): Pull request ID
-
-### `merge_pull_request`
-
-Merges a pull request.
-
-Parameters:
-- `workspace` (required): Bitbucket workspace
-- `repository` (required): Repository slug
-- `prId` (required): Pull request ID
-- `message`: Merge commit message
-- `closeSourceBranch`: Close source branch after merge
-- `mergeStrategy`: Merge strategy to use ('merge_commit', 'squash', or 'fast_forward')
-
-### `decline_pull_request`
-
-Declines a pull request.
-
-Parameters:
-- `workspace` (required): Bitbucket workspace
-- `repository` (required): Repository slug
-- `prId` (required): Pull request ID
-
-### `add_comment`
-
-Adds a comment to a pull request.
-
-Parameters:
-- `workspace` (required): Bitbucket workspace
-- `repository` (required): Repository slug
-- `prId` (required): Pull request ID
-- `text` (required): Comment text
-- `parentId`: Parent comment ID for replies
 
 ### `get_diff`
 
@@ -102,7 +57,7 @@ The server requires configuration in the MCP client settings. Here's a sample co
   "mcpServers": {
     "bitbucket-cloud": {
       "command": "node",
-      "args": ["/path/to/bitbucket-cloud-mcp-server/dist/index.js"],
+      "args": ["/path/to/bitbucket-cloud-mcp-server/build/index.js"],
       "env": {
         // Required: Bitbucket Cloud Personal Access Token
         "BITBUCKET_TOKEN": "your-bitbucket-cloud-token",
@@ -117,7 +72,7 @@ The server requires configuration in the MCP client settings. Here's a sample co
 ### Environment Variables
 
 - `BITBUCKET_TOKEN` (required): Personal access token from Bitbucket Cloud
-  - Required permissions: Repository read/write, Pull request read/write
+  - Required permissions: Repository read, Pull request read
   - Can be generated from: Bitbucket Cloud > Personal Settings > App passwords
 - `BITBUCKET_WORKSPACE` (optional): Default Bitbucket workspace to use
 
