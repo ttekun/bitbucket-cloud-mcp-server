@@ -30,7 +30,7 @@ Retrieves detailed information about a specific pull request.
 Parameters:
 - `owner` (required): Bitbucket workspace/owner
 - `repo` (required): Repository slug
-- `prId` (required): Pull request ID
+- `pull_number` (required): Pull request ID
 
 ### `get_diff`
 
@@ -93,7 +93,9 @@ npm test
 For backward compatibility, this server accepts the following parameter mappings:
 - `owner` for Bitbucket workspace/owner
 - `repo` for repository slug (older versions used `repository`)
-- `prId`, `pull_request_id`, `pullRequestId`, `pr_id`, `id`, or `pull_number` for Pull Request ID
+- For Pull Request ID:
+  - `get_pull_request`: uses `pull_number`
+  - `get_diff`: uses `prId`
 
 ## Model Context Protocol
 

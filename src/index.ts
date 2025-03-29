@@ -35,7 +35,8 @@ interface RepositoryParams {
 }
 
 interface PullRequestParams extends RepositoryParams {
-  prId: number;
+  prId?: number;
+  pull_number?: number;
 }
 
 class BitbucketCloud {
@@ -92,9 +93,9 @@ class BitbucketCloud {
             properties: {
               owner: { type: 'string', description: 'Bitbucket workspace/owner' },
               repo: { type: 'string', description: 'Repository slug' },
-              prId: { type: 'number', description: 'Pull request ID' }
+              pull_number: { type: 'number', description: 'Pull request ID' }
             },
-            required: ['owner', 'repo', 'prId']
+            required: ['owner', 'repo', 'pull_number']
           }
         },
         {
@@ -121,8 +122,13 @@ class BitbucketCloud {
         const pullRequestParams: PullRequestParams = {
           owner: (args.owner as string) ?? this.config.owner,
           repo: (args.repo as string),
-          prId: (args.prId as number)
         };
+
+        if (request.params.name === 'get_pull_request') {
+          pullRequestParams.pull_number = (args.pull_number as number);
+        } else {
+          pullRequestParams.prId = (args.prId as number);
+        }
 
         if (!pullRequestParams.owner) {
           throw new McpError(
@@ -138,7 +144,14 @@ class BitbucketCloud {
           );
         }
 
-        if (!pullRequestParams.prId) {
+        if (request.params.name === 'get_pull_request' && !pullRequestParams.pull_number) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            'Pull request ID (pull_number) must be provided'
+          );
+        }
+
+        if (request.params.name === 'get_diff' && !pullRequestParams.prId) {
           throw new McpError(
             ErrorCode.InvalidParams,
             'Pull request ID (prId) must be provided'
@@ -170,11 +183,12 @@ class BitbucketCloud {
   }
 
   private async getPullRequest(params: PullRequestParams) {
-    const { owner, repo, prId } = params;
+    const { owner, repo } = params;
+    const pullRequestNumber = params.pull_number;
     
     try {
       const response = await this.api.get(
-        `/repositories/${owner}/${repo}/pullrequests/${prId}`
+        `/repositories/${owner}/${repo}/pullrequests/${pullRequestNumber}`
       );
       
       return {
@@ -193,9 +207,11 @@ class BitbucketCloud {
   }
 
   private async getDiff(params: PullRequestParams) {
-    const { owner, repo, prId } = params;
+    const { owner, repo } = params;
+    const pullRequestId = params.prId;
+    
     const response = await this.api.get(
-      `/repositories/${owner}/${repo}/pullrequests/${prId}/diff`,
+      `/repositories/${owner}/${repo}/pullrequests/${pullRequestId}/diff`,
       {
         headers: { Accept: 'text/plain' }
       }

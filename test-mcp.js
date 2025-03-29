@@ -78,7 +78,13 @@ async function runTest() {
       const params = {};
       if (tool.inputSchema && tool.inputSchema.properties) {
         for (const [key, prop] of Object.entries(tool.inputSchema.properties)) {
-          params[key] = prop.type === 'number' ? 1 : (prop.type === 'boolean' ? true : 'example');
+          if (toolName === 'get_pull_request' && key === 'pull_number') {
+            params[key] = 1;
+          } else if (toolName === 'get_diff' && key === 'prId') {
+            params[key] = 1;
+          } else {
+            params[key] = prop.type === 'number' ? 1 : (prop.type === 'boolean' ? true : 'example');
+          }
         }
       }
       
