@@ -23,23 +23,23 @@ npm run build
 
 The server provides the following read-only MCP tools for Bitbucket Cloud integration:
 
-### `get_pull_request`
+### `get_bb_pull_request`
 
 Retrieves detailed information about a specific pull request.
 
 Parameters:
-- `owner` (required): Bitbucket workspace/owner
-- `repo` (required): Repository slug
-- `pull_number` (required): Pull request ID
+- `workspace` (required): Bitbucket workspace
+- `repo_slug` (required): Repository slug
+- `pull_request_id` (required): Pull request ID
 
-### `get_diff`
+### `get_bb_diff`
 
 Gets the diff for a pull request.
 
 Parameters:
-- `owner` (required): Bitbucket workspace/owner
-- `repo` (required): Repository slug
-- `prId` (required): Pull request ID
+- `workspace` (required): Bitbucket workspace
+- `repo_slug` (required): Repository slug
+- `pull_request_id` (required): Pull request ID
 
 ## Dependencies
 
@@ -91,11 +91,9 @@ npm test
 ## Parameter Compatibility Notes
 
 For backward compatibility, this server accepts the following parameter mappings:
-- `owner` for Bitbucket workspace/owner
-- `repo` for repository slug (older versions used `repository`)
-- For Pull Request ID:
-  - `get_pull_request`: uses `pull_number`
-  - `get_diff`: uses `prId`
+- `workspace` for Bitbucket workspace
+- `repo_slug` for repository slug
+- `pull_request_id` for Pull Request ID
 
 ## Model Context Protocol
 

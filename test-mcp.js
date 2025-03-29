@@ -59,7 +59,7 @@ async function runTest() {
       console.log(`  - ${tool.name}: ${tool.description}`);
     });
     
-    rl.question('\n🛠 テストするツール名を入力してください (例: get_pull_request): ', async (toolName) => {
+    rl.question('\n🛠 テストするツール名を入力してください (例: get_bb_pull_request): ', async (toolName) => {
       if (!toolName) {
         console.log('❌ ツール名が指定されていません。終了します。');
         cleanup();
@@ -78,9 +78,9 @@ async function runTest() {
       const params = {};
       if (tool.inputSchema && tool.inputSchema.properties) {
         for (const [key, prop] of Object.entries(tool.inputSchema.properties)) {
-          if (toolName === 'get_pull_request' && key === 'pull_number') {
+          if (toolName === 'get_bb_pull_request' && key === 'pull_request_id') {
             params[key] = 1;
-          } else if (toolName === 'get_diff' && key === 'prId') {
+          } else if (toolName === 'get_bb_diff' && key === 'pull_request_id') {
             params[key] = 1;
           } else {
             params[key] = prop.type === 'number' ? 1 : (prop.type === 'boolean' ? true : 'example');
