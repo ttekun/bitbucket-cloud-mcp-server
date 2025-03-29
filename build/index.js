@@ -61,9 +61,11 @@ class BitbucketCloud {
                         properties: {
                             owner: { type: 'string', description: 'Bitbucket workspace/owner' },
                             repo: { type: 'string', description: 'Repository slug' },
-                            prId: { type: 'number', description: 'Pull request ID' }
+                            pull_number: { type: 'number', description: 'Pull request number' },
+                            prId: { type: 'number', description: 'Pull request ID (alternative to pull_number)' },
+                            repository: { type: 'string', description: 'Repository slug (legacy, use repo instead)' }
                         },
-                        required: ['owner', 'repo', 'prId']
+                        required: ['owner', 'repo', 'pull_number']
                     }
                 },
                 {
@@ -74,9 +76,11 @@ class BitbucketCloud {
                         properties: {
                             owner: { type: 'string', description: 'Bitbucket workspace/owner' },
                             repo: { type: 'string', description: 'Repository slug' },
-                            prId: { type: 'number', description: 'Pull request ID' }
+                            pull_number: { type: 'number', description: 'Pull request number' },
+                            prId: { type: 'number', description: 'Pull request ID (alternative to pull_number)' },
+                            repository: { type: 'string', description: 'Repository slug (legacy, use repo instead)' }
                         },
-                        required: ['owner', 'repo', 'prId']
+                        required: ['owner', 'repo', 'pull_number']
                     }
                 }
             ]
@@ -88,12 +92,12 @@ class BitbucketCloud {
                 const pullRequestParams = {
                     owner: args.owner ?? this.config.owner,
                     repo: args.repo ?? args.repository,
-                    prId: args.prId ??
+                    prId: args.pull_number ??
+                        args.prId ??
                         args.pull_request_id ??
                         args.pullRequestId ??
                         args.pr_id ??
-                        args.id ??
-                        args.pull_number
+                        args.id
                 };
                 if (!pullRequestParams.owner) {
                     throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Owner must be provided either as a parameter or through BITBUCKET_WORKSPACE environment variable');

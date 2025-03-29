@@ -92,9 +92,11 @@ class BitbucketCloud {
             properties: {
               owner: { type: 'string', description: 'Bitbucket workspace/owner' },
               repo: { type: 'string', description: 'Repository slug' },
-              prId: { type: 'number', description: 'Pull request ID' }
+              pull_number: { type: 'number', description: 'Pull request number' },
+              prId: { type: 'number', description: 'Pull request ID (alternative to pull_number)' },
+              repository: { type: 'string', description: 'Repository slug (legacy, use repo instead)' }
             },
-            required: ['owner', 'repo', 'prId']
+            required: ['owner', 'repo', 'pull_number']
           }
         },
         {
@@ -105,9 +107,11 @@ class BitbucketCloud {
             properties: {
               owner: { type: 'string', description: 'Bitbucket workspace/owner' },
               repo: { type: 'string', description: 'Repository slug' },
-              prId: { type: 'number', description: 'Pull request ID' }
+              pull_number: { type: 'number', description: 'Pull request number' },
+              prId: { type: 'number', description: 'Pull request ID (alternative to pull_number)' },
+              repository: { type: 'string', description: 'Repository slug (legacy, use repo instead)' }
             },
-            required: ['owner', 'repo', 'prId']
+            required: ['owner', 'repo', 'pull_number']
           }
         }
       ]
@@ -121,12 +125,12 @@ class BitbucketCloud {
         const pullRequestParams: PullRequestParams = {
           owner: (args.owner as string) ?? this.config.owner,
           repo: (args.repo as string) ?? (args.repository as string),
-          prId: (args.prId as number) ?? 
+          prId: (args.pull_number as number) ?? 
+                (args.prId as number) ?? 
                 (args.pull_request_id as number) ?? 
                 (args.pullRequestId as number) ?? 
                 (args.pr_id as number) ??
-                (args.id as number) ??
-                (args.pull_number as number)
+                (args.id as number)
         };
 
         if (!pullRequestParams.owner) {
