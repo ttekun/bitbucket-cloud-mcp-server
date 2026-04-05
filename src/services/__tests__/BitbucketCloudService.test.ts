@@ -43,12 +43,12 @@ describe('BitbucketCloudService', () => {
 
     it('should throw an error when API call fails', async () => {
       const error = new Error('API Error');
-      (error as any).isAxiosError = true;
+      mockedAxios.isAxiosError.mockReturnValue(true);
       mockAxiosInstance.get.mockRejectedValue(error);
 
       await expect(
         service.getPullRequest(mockWorkspace, mockRepoSlug, mockPullRequestId)
-      ).rejects.toThrow(`Failed to fetch pull request: API Error`);
+      ).rejects.toThrow('Failed to fetch pull request: API Error');
     });
   });
 }); 

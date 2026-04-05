@@ -35,7 +35,12 @@ describe('Pull Request API Endpoints', () => {
         id: 123,
         title: 'Test PR',
         description: 'Test Description',
-        state: 'OPEN'
+        state: 'OPEN',
+        author: { display_name: 'Test User', uuid: '{test-uuid}' },
+        source: { branch: { name: 'feature' }, commit: { hash: 'abc123' } },
+        destination: { branch: { name: 'main' } },
+        created_on: '2024-01-01T00:00:00Z',
+        updated_on: '2024-01-01T00:00:00Z'
       };
 
       const mockGetPullRequest = jest.spyOn(BitbucketCloudService.prototype, 'getPullRequest');

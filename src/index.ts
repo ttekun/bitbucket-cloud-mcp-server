@@ -10,6 +10,7 @@ import {
 import axios, { AxiosInstance } from 'axios';
 import winston from 'winston';
 import dotenv from 'dotenv';
+import { BitbucketConfig, RepositoryParams, PullRequestParams } from './types';
 
 // 環境変数の読み込み
 dotenv.config();
@@ -22,21 +23,6 @@ const logger = winston.createLogger({
     new winston.transports.File({ filename: 'bitbucket-cloud.log' })
   ]
 });
-
-interface BitbucketConfig {
-  baseUrl: string;
-  token: string;
-  workspace?: string;
-}
-
-interface RepositoryParams {
-  workspace: string;
-  repo_slug: string;
-}
-
-interface PullRequestParams extends RepositoryParams {
-  pull_request_id?: number;
-}
 
 class BitbucketCloud {
   private readonly server: Server;
@@ -118,32 +104,32 @@ class BitbucketCloud {
         logger.info(`Called tool: ${request.params.name}`, { arguments: request.params.arguments });
         const args = request.params.arguments ?? {};
 
-        const pullRequestParams: PullRequestParams = {
-          workspace: (args.workspace as string) ?? this.config.workspace,
-          repo_slug: (args.repo_slug as string),
-          pull_request_id: (args.pull_request_id as number)
-        };
+        const workspace = (args.workspace as string) ?? this.config.workspace;
+        const repo_slug = args.repo_slug as string;
+        const pull_request_id = args.pull_request_id as number;
 
-        if (!pullRequestParams.workspace) {
+        if (!workspace) {
           throw new McpError(
             ErrorCode.InvalidParams,
             'Workspace must be provided either as a parameter or through BITBUCKET_WORKSPACE environment variable'
           );
         }
 
-        if (!pullRequestParams.repo_slug) {
+        if (!repo_slug) {
           throw new McpError(
             ErrorCode.InvalidParams,
             'Repository slug (repo_slug) must be provided'
           );
         }
 
-        if (!pullRequestParams.pull_request_id) {
+        if (!pull_request_id) {
           throw new McpError(
             ErrorCode.InvalidParams,
             'Pull request ID (pull_request_id) must be provided'
           );
         }
+
+        const pullRequestParams: PullRequestParams = { workspace, repo_slug, pull_request_id };
 
         switch (request.params.name) {
           case 'get_bb_pull_request':

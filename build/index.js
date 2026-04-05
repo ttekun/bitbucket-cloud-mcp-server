@@ -34,7 +34,7 @@ class BitbucketCloud {
         this.config = {
             baseUrl: 'https://api.bitbucket.org/2.0',
             token: process.env.BITBUCKET_TOKEN ?? '',
-            owner: process.env.BITBUCKET_WORKSPACE
+            workspace: process.env.BITBUCKET_WORKSPACE
         };
         if (!this.config.token) {
             throw new Error('BITBUCKET_TOKEN is required');
@@ -54,29 +54,29 @@ class BitbucketCloud {
         this.server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({
             tools: [
                 {
-                    name: 'get_pull_request',
+                    name: 'get_bb_pull_request',
                     description: 'Get pull request details from Bitbucket Cloud',
                     inputSchema: {
                         type: 'object',
                         properties: {
-                            owner: { type: 'string', description: 'Bitbucket workspace/owner' },
-                            repo: { type: 'string', description: 'Repository slug' },
-                            prId: { type: 'number', description: 'Pull request ID' }
+                            workspace: { type: 'string', description: 'Bitbucket workspace' },
+                            repo_slug: { type: 'string', description: 'Repository slug' },
+                            pull_request_id: { type: 'number', description: 'Pull request ID' }
                         },
-                        required: ['owner', 'repo', 'prId']
+                        required: ['workspace', 'repo_slug', 'pull_request_id']
                     }
                 },
                 {
-                    name: 'get_diff',
+                    name: 'get_bb_diff',
                     description: 'Get pull request diff from Bitbucket Cloud',
                     inputSchema: {
                         type: 'object',
                         properties: {
-                            owner: { type: 'string', description: 'Bitbucket workspace/owner' },
-                            repo: { type: 'string', description: 'Repository slug' },
-                            prId: { type: 'number', description: 'Pull request ID' }
+                            workspace: { type: 'string', description: 'Bitbucket workspace' },
+                            repo_slug: { type: 'string', description: 'Repository slug' },
+                            pull_request_id: { type: 'number', description: 'Pull request ID' }
                         },
-                        required: ['owner', 'repo', 'prId']
+                        required: ['workspace', 'repo_slug', 'pull_request_id']
                     }
                 }
             ]
@@ -85,25 +85,24 @@ class BitbucketCloud {
             try {
                 logger.info(`Called tool: ${request.params.name}`, { arguments: request.params.arguments });
                 const args = request.params.arguments ?? {};
-                const pullRequestParams = {
-                    owner: args.owner ?? this.config.owner,
-                    repo: args.repo,
-                    prId: args.prId
-                };
-                if (!pullRequestParams.owner) {
-                    throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Owner must be provided either as a parameter or through BITBUCKET_WORKSPACE environment variable');
+                const workspace = args.workspace ?? this.config.workspace;
+                const repo_slug = args.repo_slug;
+                const pull_request_id = args.pull_request_id;
+                if (!workspace) {
+                    throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Workspace must be provided either as a parameter or through BITBUCKET_WORKSPACE environment variable');
                 }
-                if (!pullRequestParams.repo) {
-                    throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Repository slug (repo) must be provided');
+                if (!repo_slug) {
+                    throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Repository slug (repo_slug) must be provided');
                 }
-                if (!pullRequestParams.prId) {
-                    throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Pull request ID (prId) must be provided');
+                if (!pull_request_id) {
+                    throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, 'Pull request ID (pull_request_id) must be provided');
                 }
+                const pullRequestParams = { workspace, repo_slug, pull_request_id };
                 switch (request.params.name) {
-                    case 'get_pull_request':
-                        return await this.getPullRequest(pullRequestParams);
-                    case 'get_diff':
-                        return await this.getDiff(pullRequestParams);
+                    case 'get_bb_pull_request':
+                        return await this.getBbPullRequest(pullRequestParams);
+                    case 'get_bb_diff':
+                        return await this.getBbDiff(pullRequestParams);
                     default:
                         throw new types_js_1.McpError(types_js_1.ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
                 }
@@ -117,10 +116,10 @@ class BitbucketCloud {
             }
         });
     }
-    async getPullRequest(params) {
-        const { owner, repo, prId } = params;
+    async getBbPullRequest(params) {
+        const { workspace, repo_slug, pull_request_id } = params;
         try {
-            const response = await this.api.get(`/repositories/${owner}/${repo}/pullrequests/${prId}`);
+            const response = await this.api.get(`/repositories/${workspace}/${repo_slug}/pullrequests/${pull_request_id}`);
             return {
                 content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }]
             };
@@ -133,9 +132,9 @@ class BitbucketCloud {
             throw error;
         }
     }
-    async getDiff(params) {
-        const { owner, repo, prId } = params;
-        const response = await this.api.get(`/repositories/${owner}/${repo}/pullrequests/${prId}/diff`, {
+    async getBbDiff(params) {
+        const { workspace, repo_slug, pull_request_id } = params;
+        const response = await this.api.get(`/repositories/${workspace}/${repo_slug}/pullrequests/${pull_request_id}/diff`, {
             headers: { Accept: 'text/plain' }
         });
         return {
